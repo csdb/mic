@@ -33,6 +33,7 @@ from mic import msger
 from mic.utils.errors import CreatorError, Abort
 from mic.utils import misc, rpmmisc, runner, fs_related as fs
 
+in_image_creation = "/in_image_creation"
 class BaseImageCreator(object):
     """Installs a system to a chroot directory.
 
@@ -628,6 +629,13 @@ class BaseImageCreator(object):
         fstab.write(self._get_fstab())
         fstab.close()
 
+    def __notify_image_creation(self):
+        if not os.path.exists(os.path.dirname(self._instroot + in_image_creation)):
+            os.mkdir(os.path.dirname(self._instroot + in_image_creation))
+        fstab = open(self._instroot + in_image_creation, "w")
+        fstab.write("#Running in mic2\n");
+        fstab.close()
+
     def __create_minimal_dev(self):
         """Create a minimal /dev so that we don't corrupt the host /dev"""
         origumask = os.umask(0000)
@@ -714,6 +722,7 @@ class BaseImageCreator(object):
         os.symlink("../proc/mounts", self._instroot + "/etc/mtab")
 
         self.__write_fstab()
+        self.__notify_image_creation()
 
         # get size of available space in 'instroot' fs
         self._root_fs_avail = misc.get_filesystem_avail(self._instroot)
@@ -733,6 +742,8 @@ class BaseImageCreator(object):
 
             if self.qemu_emulator:
                 os.unlink(self._instroot + self.qemu_emulator)
+	    if os.path.isfile(self._instroot + in_image_creation):
+	        os.unlink(self._instroot + in_image_creation)
         except OSError:
             pass
 
